@@ -20,6 +20,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-locals
 
+import curses
 import math
 import os
 import sys
@@ -202,6 +203,42 @@ def park(args):
         print('   {:6s}    {}'.format(p, PARK_POSITIONS[p][2]))
     print()
     return -1
+
+def paddle_inner(screen):
+    screen.addstr('Use arrow keys to slew, ESC to exit\n')
+
+    # Set half-second timeout for getch to stop slewing (must be > keyrepeat)
+    curses.halfdelay(5)
+    last_char = 0
+    while True:
+        char = screen.getch()
+        if char == 27:
+            break
+
+        if char == last_char:
+            continue
+
+        last_char = char
+        if char == curses.KEY_RIGHT:
+            screen.addstr('+RA\n')
+        elif char == curses.KEY_LEFT:
+            screen.addstr('-RA\n')
+        elif char == curses.KEY_UP:
+            screen.addstr('+Dec\n')
+        elif char == curses.KEY_DOWN:
+            screen.addstr('-Dec\n')
+        else:
+            screen.addstr('Stop\n')
+
+def paddle(args):
+    """Slews the telescope using the arrow keys"""
+    if len(args) != 1 or args[0] not in ['fast', 'slow']:
+        print('usage: {} paddle (fast|slow)'.format(SCRIPT_NAME))
+        return -1
+
+    os.environ.setdefault('ESCDELAY', '25')
+    curses.wrapper(paddle_inner)
+    return 0
 
 def slew(args):
     """Slews the telescope to a specified RA,Dec position"""
@@ -485,6 +522,7 @@ def print_usage():
     #print('   covers    open or close the mirror covers')
     print('   drive     enable or disable the telescope drive power')
     print('   park      park the telescope in a named position')
+    print('   paddle    manually slew telescope using the arrow keys')
     print()
     print('observing commands:')
     print('   slew      slew the telescope to a given RA, Dec')
@@ -513,6 +551,8 @@ if __name__ == '__main__':
         run_command(lambda: drive_power(sys.argv[2:]))
     if sys.argv[1] == 'park':
         run_command(lambda: park(sys.argv[2:]))
+    if sys.argv[1] == 'paddle':
+        run_command(lambda: paddle(sys.argv[2:]))
     if sys.argv[1] == 'slew':
         run_command(lambda: slew(sys.argv[2:]))
     if sys.argv[1] == 'track':
